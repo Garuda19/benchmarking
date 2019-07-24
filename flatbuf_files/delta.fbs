@@ -1,0 +1,15 @@
+namespace flat_benchmarking;
+
+
+table FlatDelta {
+  sessionId:string;
+  type:int32;
+  chips:int64;
+  tracking:[string];
+  installOS:string;
+  timestamp: int64;
+  clearTimeStamp:bool;
+  isTournament:bool;
+}
+
+root_type FlatDelta;
