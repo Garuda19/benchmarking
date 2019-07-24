@@ -1,0 +1,14 @@
+syntax = "proto3";
+package benchmarking;
+
+
+message Delta {
+  string sessionId = 1;
+  int32 type = 2;
+  int64 chips = 3;
+  repeated string tracking = 4;
+  string installOS = 5;
+  int64 timestamp = 6;
+  bool clearTimeStamp = 7;
+  bool isTournament = 8;
+}
