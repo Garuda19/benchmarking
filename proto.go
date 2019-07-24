@@ -6,9 +6,11 @@ import (
 	"log"
 	"time"
 	"github.com/Garuda19/benchmarking/protobuf_files"
+	sample "github.com/Garuda19/benchmarking/flatbuf_files/flat_benchmarking"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/nasermirzaei89/chance"
+	flatbuffers "github.com/google/flatbuffers/go"
 )
 
 type parsedDelta struct {
@@ -44,7 +46,7 @@ func main() {
 	//}
 	//fmt.Print(test)
 
-	totalTestSize := 10000
+	totalTestSize := 100000
 	protoArrays := make([][]byte, totalTestSize)
 	var  serializationTime int64
 	var  deserializationTime int64
@@ -76,7 +78,7 @@ func main() {
 			deserializationTime += makeTimestamp() - startTime
 		}
 	}
-	fmt.Print("flatbuffer ------ \n")
+	fmt.Print("protobuf ------ \n")
 	fmt.Print("total serialization time ", serializationTime, "\n")
 	fmt.Print("average serialization time ", (float64(serializationTime))/(float64(totalTestSize)), "\n")
 	fmt.Print("total deserialization time ", deserializationTime, "\n")
@@ -118,6 +120,31 @@ func main() {
 	fmt.Print("total data size ", dataSize, "\n")
 	fmt.Print("average data size ", (float64(dataSize))/(float64(totalTestSize)), "\n")
 
+	protoArrays = make([][]byte, totalTestSize)
+	deserializationTime = 0
+	serializationTime = 0
+	dataSize = 0
+	for i := 0; i < totalTestSize; {
+		startTime := makeTimestamp()
+		data := generateFlatDelta()
+		protoArrays[i] = data
+		i++
+		serializationTime += (makeTimestamp()) - startTime
+		dataSize += float64(len(data))/1024
+	}
+	for i := 0; i < totalTestSize; i++ {
+		startTime := makeTimestamp()
+		parseFlatDelta(protoArrays[i])
+		deserializationTime += makeTimestamp() - startTime
+	}
+	fmt.Print("FlatBuffer ----- \n")
+	fmt.Print("total serialization time ", serializationTime, "\n")
+	fmt.Print("average serialization time ", (float64(serializationTime))/(float64(totalTestSize)), "\n")
+	fmt.Print("total deserialization time ", deserializationTime, "\n")
+	fmt.Print("average deserialization time ", (float64(deserializationTime))/(float64(totalTestSize)), "\n")
+	fmt.Print("total data size ", dataSize, "\n")
+	fmt.Print("average data size ", (float64(dataSize))/(float64(totalTestSize)), "\n")
+
 }
 
 func generateDelta() ([]byte, error){
@@ -150,6 +177,51 @@ func generateDeltaJSON() ([]byte, error){
 	}
 	return json.Marshal(delta)
 
+}
+
+func generateFlatDelta() []byte{
+	ch:= chance.New(chance.SetSeed(time.Now().UnixNano()))
+	builder := flatbuffers.NewBuilder(1024)
+
+
+	track1 := builder.CreateString(chance.String())
+	track2 := builder.CreateString(chance.String())
+	sample.FlatDeltaStartTrackingVector(builder, 2)
+	builder.PrependUOffsetT(track1)
+	builder.PrependUOffsetT(track2)
+	track := builder.EndVector(2)
+
+	sessId := builder.CreateString(ch.String())
+	os := builder.CreateString("gplay")
+
+	sample.FlatDeltaStart(builder)
+	sample.FlatDeltaAddSessionId(builder, sessId)
+	sample.FlatDeltaAddType(builder, 3)
+	sample.FlatDeltaAddChips(builder, ch.Int64())
+	sample.FlatDeltaAddClearTimeStamp(builder, ch.Bool())
+	sample.FlatDeltaAddTracking(builder, track)
+	sample.FlatDeltaAddInstallOS(builder, os)
+	sample.FlatDeltaAddTimestamp(builder, ch.Int64())
+	sample.FlatDeltaAddIsTournament(builder, ch.Bool())
+	flatDelta := sample.FlatDeltaEnd(builder)
+	builder.Finish(flatDelta)
+	return builder.FinishedBytes()
+}
+
+func parseFlatDelta(data []byte) *sample.FlatDelta{
+	flatDelta := sample.GetRootAsFlatDelta(data, 0)
+	flatDelta.SessionId()
+	flatDelta.Type()
+	flatDelta.Timestamp()
+	flatDelta.Chips()
+	flatDelta.ClearTimeStamp()
+	flatDelta.Tracking(0)
+	flatDelta.Tracking(1)
+	flatDelta.InstallOS()
+	flatDelta.Timestamp()
+	flatDelta.IsTournament()
+
+	return flatDelta
 }
 
 func parseDelta(data []byte,) error {
